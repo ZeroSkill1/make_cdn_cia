@@ -49,58 +49,6 @@ static size_t getSigSize(uint32_t sigType)
 	}
 }
 
-static size_t getCertSize(uint32_t sigType)
-{
-	switch (be32toh(sigType)) {
-		case SIGTYPE_RSA4096_SHA1:
-		case SIGTYPE_RSA4096_SHA256:
-			return 1020;
-
-		case SIGTYPE_RSA2048_SHA1:
-		case SIGTYPE_RSA2048_SHA256:
-			return 764;
-
-		case SIGTYPE_ECDSA_SHA1:
-		case SIGTYPE_ECDSA_SHA256:
-			return 140;
-
-		default:
-			errno = EILSEQ;
-			return 0;
-	}
-}
-
-static int certSaveAndSkip(FILE * f, chunk_t * cert)
-{
-	uint32_t typeId;
-	size_t certSize;
-
-	chunkMarkStart(cert, f);
-
-	if (fread(&typeId, sizeof(uint32_t), 1, f) != 1)
-	{
-		perror("certSaveAndSkip: unable to read type ID");
-		return -1;
-	}
-
-	certSize = getCertSize(typeId);
-	if (!certSize)
-	{
-		fprintf(stderr, "certSaveAndSkip: unknown cert type ID: %08X\n", typeId);
-		return -1;
-	}
-
-	if (fseek(f, certSize, SEEK_CUR))
-	{
-		perror("certSaveAndSkip: unable to skip certificate data");
-		return -1;
-	}
-
-	chunkMarkEnd(cert, f);
-
-	return 0;
-}
-
 static int skipSignature(FILE * f)
 {
 	uint32_t sigType;
@@ -141,7 +89,7 @@ static int buildCIAHdr(CIAHdr *cia, const TIKCtx *tik, const TMDCtx *tmd)
 	cia->hdrSize = htole32(sizeof(*cia));
 	cia->type = htole16(0);
 	cia->ver = htole16(0);
-	cia->certSize = htole32(tik->caCert.size + tik->xsCert.size + tmd->cpCert.size);
+	cia->certSize = 0;
 	cia->tikSize = htole32(tik->headerChunk.size);
 	cia->tmdSize = htole32(tmd->headerChunk.size);
 	cia->metaSize = htole32(0);
@@ -174,26 +122,6 @@ int writeCIA(const TMDCtx *tmd, const TIKCtx *tik, FILE *fp)
 	}
 	if (fwrite(&cia, sizeof(cia), 1, fp) <= 0) {
 		perror("CIA: error");
-		return -1;
-	}
-
-	alignFilePointer(fp, 64);
-
-	if (!chunkAppendToFile(&tik->caCert, fp))
-	{
-		perror("CIA: could not add CA cert to cia");
-		return -1;
-	}
-
-	if (!chunkAppendToFile(&tik->xsCert, fp))
-	{
-		perror("CIA: could not add XS cert to cia");
-		return -1;
-	}
-
-	if (!chunkAppendToFile(&tmd->cpCert, fp))
-	{
-		perror("CIA: could not add CP cert to cia");
 		return -1;
 	}
 
@@ -301,20 +229,6 @@ int processTIK(TIKCtx *tik)
 
 	chunkMarkEnd(&tik->headerChunk, tik->fp);
 
-	// Read "XS" cert
-	if (certSaveAndSkip(tik->fp, &tik->xsCert))
-	{
-		fprintf(stderr, "CETK: Unable to extract XS certificate\n");
-		return -1;
-	}
-
-	// Read CA cert
-	if (certSaveAndSkip(tik->fp, &tik->caCert))
-	{
-		fprintf(stderr, "CETK: Unable to extract CA certificate\n");
-		return -1;
-	}
-
 	return 0;
 }
 
@@ -357,18 +271,6 @@ int processTMD(TMDCtx *tmd)
 	}
 
 	chunkMarkEnd(&tmd->headerChunk, tmd->fp);
-
-	if (certSaveAndSkip(tmd->fp, &tmd->cpCert))
-	{
-		fprintf(stderr, "TMD: Unable to extract CP certificate\n");
-		return -1;
-	}
-
-	if (certSaveAndSkip(tmd->fp, &tmd->caCert))
-	{
-		fprintf(stderr, "TMD: Unable to extract CA certificate\n");
-		return -1;
-	}
 
 	return 0;
 }

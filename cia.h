@@ -37,8 +37,6 @@ typedef struct
 	uint64_t titleID;
 	uint16_t titleVer;
 	chunk_t headerChunk;
-	chunk_t xsCert;
-	chunk_t caCert;
 } TIKCtx;
 
 // Pack stuff to avoid weird behaviour and padding in 64-bit systems
@@ -116,8 +114,6 @@ typedef struct
 	uint64_t titleID;
 	uint16_t titleVer;
 	chunk_t headerChunk;
-	chunk_t cpCert;
-	chunk_t caCert;
 	uint16_t contentCnt;
 	TMDContent *content;
 

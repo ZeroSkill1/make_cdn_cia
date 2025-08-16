@@ -32,7 +32,7 @@
 static uint8_t * STATIC_BUFFER = NULL;
 static const size_t STATIC_BUFFER_SIZE = 1024 * 1024;
 
-void initBuffer()
+void ensureBuffer()
 {
 	if (likely(STATIC_BUFFER != NULL))
 		return;
@@ -45,9 +45,16 @@ void initBuffer()
 	exit(1);
 }
 
+void freeBuffer() {
+	if (STATIC_BUFFER) {
+		free(STATIC_BUFFER);
+		STATIC_BUFFER = NULL;
+	}
+}
+
 bool fastClone(FILE * in, FILE * out, size_t remaining)
 {
-	initBuffer();
+	ensureBuffer();
 
 	while (remaining > STATIC_BUFFER_SIZE)
 	{
@@ -68,7 +75,7 @@ bool fastClone(FILE * in, FILE * out, size_t remaining)
 		if (fwrite(STATIC_BUFFER, remaining, 1, out) != 1)
 			return false;
 	}
-
+	
 	return true;
 }
 

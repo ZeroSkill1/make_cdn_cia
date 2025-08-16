@@ -31,3 +31,4 @@ bool alignFilePointer(FILE * file, size_t chunkSize);
 bool chunkMarkStart(chunk_t * chunk, FILE * file);
 bool chunkMarkEnd(chunk_t * chunk, FILE * file);
 bool chunkAppendToFile(const chunk_t * chunk, FILE * output);
+void freeBuffer();
